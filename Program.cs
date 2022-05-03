@@ -1,0 +1,169 @@
+﻿using System.Text;
+using System.Xml;
+using System.Xml.Linq;
+using HtmlAgilityPack;
+
+namespace PortfolioProjectHTMLInserter
+{
+    static class Program
+    {
+        const string VERSION = "1.0.0";
+
+        public const string CONFIG_FILE = "HTMLInserter.config";
+
+        static bool _IsRunning = true;
+
+        public static string IndexPath = null!;
+        public static string ProjectPath = null!;
+        public static string OutputPath = null!;
+
+        class Command
+        {
+            public Action<string[]> Function;
+            public string Args;
+            public string Description;
+
+            public Command(Action<string[]> func, string args, string description)
+            {
+                Function = func;
+                Args = args;
+                Description = description;
+            }
+        }
+
+        static readonly Dictionary<string, Command> _Commands = new()
+        {
+            { "help", new Command(Help, "[?string:command]", "Lists commands or provides detailed info on given command") },
+            { "build", new Command(BuildIndex, "", "Generates index.html from provided data.") },
+            { "config", new Command(Config.Configure, "[?string:option] [?string:value]", "Gets or sets config options. Provide value to set, empty to list.") },
+            { "exit", new Command((_)=>_IsRunning=false, "", "Quits the application.") }
+        };
+
+        static void HandleInvalid()
+        {
+            Console.WriteLine("Invalid input.");
+            _Commands["help"].Function(Array.Empty<string>());
+        }
+
+        static void Main(string[] _)
+        {
+            Console.WriteLine($"HTML Inserter - Version {VERSION}\nType 'help' to list commands.");
+
+            Config.Initalize();
+
+
+
+            while (_IsRunning)
+            {
+                string? input = Console.ReadLine();
+                if (input == null)
+                {
+                    HandleInvalid();
+                    continue;
+                }
+
+                string[] values = input.Split(" ", StringSplitOptions.TrimEntries);
+
+                if (_Commands.TryGetValue(values[0].ToLower(), out var command))
+                {
+                    command.Function(values.Skip(1).ToArray());
+                }
+                else
+                {
+                    HandleInvalid();
+                    continue;
+                }
+            }
+        }
+
+        static void Help(string[] args)
+        {
+            StringBuilder output = new(10 + _Commands.Count * 50);
+            output.AppendLine("Help:");
+
+            foreach (KeyValuePair<string, Command> command in _Commands)
+            {
+                output.AppendLine($"\t{command.Key}: {command.Value.Description}");
+            }
+            Console.WriteLine(output.ToString());
+        }
+
+
+
+        static void InsertProject(HtmlNode indexHeaderContainer, HtmlNode indexProjectContainer, HtmlNode projectHeader, HtmlNode projectBody)
+        {
+            indexHeaderContainer.AppendChildren(projectHeader.ChildNodes);
+
+            HtmlNode lastChild = indexHeaderContainer;
+            foreach(HtmlNode node in projectBody.ChildNodes)
+            {
+                indexProjectContainer.InsertAfter(node, lastChild);
+                lastChild = node;
+            }
+        }
+
+        static void InsertProjects(HtmlNode projectHeaderContainer, HtmlNode projectsContainer)
+        {
+            string[] projectFiles = Directory.GetFiles(ProjectPath);
+
+            for (int i = projectFiles.Length - 1; i >= 0; i--)
+            {
+                string file = projectFiles[i];
+                if (!file.EndsWith(".html"))
+                {
+                    Console.WriteLine($"Skipping '{file}' due to extension.");
+                    continue;
+                }
+                HtmlDocument projectRoot = new();
+                projectRoot.Load(file);
+
+                bool isHeaderValid = Query.Perform(projectRoot, "headerData", out var headerQuery);
+                bool isBodyValid = Query.Perform(projectRoot, "bodyData", out var bodyQuery);
+                if (!isHeaderValid || !isBodyValid)
+                {
+                    Console.WriteLine($"Skipping '{file}' due to missing header or body elements.");
+                    continue;
+                }
+                InsertProject(projectHeaderContainer, projectsContainer, headerQuery.First(), bodyQuery.First());
+                Console.WriteLine($"Successfully inserted '{file}");
+            }
+        }
+
+        static void BuildIndex(string[] args)
+        {
+            if (!File.Exists(IndexPath))
+            {
+                Console.WriteLine($"ERROR: Could not find template index.html at {Path.GetFullPath(IndexPath)}");
+                return;
+            }
+            HtmlDocument root = new();
+            try
+            {
+                root.Load(IndexPath);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"ERROR: {e.Message}");
+                return;
+            }
+
+            bool isBodyValid = Query.Perform(root, "div", "main", out IEnumerable<HtmlNode> bodyQuery);
+            bool isHeaderValid = Query.Perform(root, "article", "projects", out IEnumerable<HtmlNode> headerQuery);
+            if (!isBodyValid || !isHeaderValid)
+            {
+                Console.WriteLine("Operation failed.");
+                return;
+            }
+
+            HtmlNode body = bodyQuery.First();
+            HtmlNode header = headerQuery.First();
+
+            InsertProjects(header, body);
+
+            FileStream outputFile = File.Create(OutputPath);
+            root.Save(outputFile);
+            outputFile.Close();
+            Console.WriteLine($"Successfully saved file to '{Path.GetFullPath(OutputPath)}'");
+        }
+    } 
+}
