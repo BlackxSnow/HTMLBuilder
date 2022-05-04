@@ -155,7 +155,7 @@ namespace HTMLBuilder
             Program.OutputPath = configValues[2];
         }
 
-        public static void Initalize()
+        public static void Initialize()
         {
             if (!File.Exists(Program.CONFIG_FILE))
             {

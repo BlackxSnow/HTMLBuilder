@@ -9,7 +9,7 @@ namespace HTMLBuilder
     {
         const string VERSION = "1.0.0";
 
-        public const string CONFIG_FILE = "HTMLInserter.config";
+        public const string CONFIG_FILE = "HBConfig.xml";
 
         static bool _IsRunning = true;
 
@@ -17,17 +17,31 @@ namespace HTMLBuilder
         public static string ProjectPath = null!;
         public static string OutputPath = null!;
 
+        class Subcommand
+        {
+            public readonly string Args;
+            public readonly string Description;
+
+            public Subcommand(string args, string description)
+            {
+                Args = args;
+                Description = description;
+            }
+        }
+
         class Command
         {
             public readonly Action<Argument[]> Function;
             public readonly string Args;
             public readonly string Description;
+            public readonly Subcommand[] Subcommands;
 
-            public Command(Action<Argument[]> func, string args, string description)
+            public Command(Action<Argument[]> func, string args, string description, params Subcommand[] subcommands)
             {
                 Function = func;
                 Args = args;
                 Description = description;
+                Subcommands = subcommands;
             }
         }
 
@@ -48,7 +62,12 @@ namespace HTMLBuilder
             { "help", new Command(Help, "[?string:command]", "Lists commands or provides detailed info on given command") },
             { "build", new Command(BuildIndex, "", "Generates index.html from provided data.") },
             { "config", new Command(Config.Configure, "[?string:option] [?string:value]", "Gets or sets config options. Provide value to set, empty to list.") },
-            { "exit", new Command((_)=>_IsRunning=false, "", "Quits the application.") }
+            { "exit", new Command((_) => _IsRunning = false, "", "Quits the application.") },
+            { "ref", new Command(Map.Command_Ref, "[set/remove/list]", "Mapping Reference manipulation and viewing.",
+                new Subcommand("set [key] [file/folder] [path]", "Creates or modifies a reference by key."),
+                new Subcommand("remove", "Removes a mapping reference."),
+                new Subcommand("list [?string:search] [options: (-p --path), (-m --mappings)]", "Lists all mapping references optionally by search term.")
+            )}
         };
 
         static void HandleInvalid()
@@ -94,9 +113,8 @@ namespace HTMLBuilder
         {
             Console.WriteLine($"HTML Inserter - Version {VERSION}\nType 'help' to list commands.");
 
-            Config.Initalize();
-
-
+            Config.Initialize();
+            Map.Initialize();
 
             while (_IsRunning)
             {
