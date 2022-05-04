@@ -329,7 +329,7 @@ namespace HTMLBuilder
             foreach (Reference reference in references)
             {
                 output.Append($"{reference.Key}");
-                if (options.HasFlag(RefListOptions.ShowPath)) output.Append($": {reference.Path}");
+                if (options.HasFlag(RefListOptions.ShowPath)) output.Append($": {reference.Path} ({reference.PathType.ToString()})");
                 output.Append("\n");
                 if (options.HasFlag(RefListOptions.ShowMappings))
                 {
