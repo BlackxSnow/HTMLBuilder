@@ -206,7 +206,7 @@ namespace HTMLBuilder
             bool isKeyValid = Map.References.TryGetValue(key.Value, out Reference? reference);
             if (!isKeyValid)
             {
-                Console.WriteLine($"Reference key '{key}' does not exist.");
+                Console.WriteLine($"Reference key '{key.Value}' does not exist.");
                 return;
             }
 
