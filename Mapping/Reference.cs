@@ -107,7 +107,16 @@ namespace HTMLBuilder
             Program.Argument pathTypeArg = Arguments.Read(in args, 2);
             Program.Argument path = Arguments.Read(in args, 3);
 
-            PathResult pathType = Enum.Parse<PathResult>(pathTypeArg.Value, true);
+            PathResult pathType;
+            try
+            {
+                pathType = Enum.Parse<PathResult>(pathTypeArg.Value, true);
+            }
+            catch (ArgumentException)
+            {
+                Console.WriteLine($"PathType '{pathTypeArg.Value}' is not valid. (folder or file)");
+                throw;
+            }
             if (Map.References.ContainsKey(key.Value))
             {
                 Reference toSet = Map.References[key.Value];
