@@ -270,6 +270,14 @@ namespace HTMLBuilder
 
             References.Remove(key.Value);
             Heads.Remove(reference!);
+            using (FileStream mapFile = File.Open(MAP_FILE, FileMode.Open))
+            {
+                XElement root = XElement.Load(mapFile);
+                XElement refElement = root.Element("references")!.Elements("ref").First(e => e.Attribute("key")?.Value == key.Value);
+                refElement.Remove();
+                SaveMap(mapFile, root);
+            }
+            Console.WriteLine($"Successfully removed '{key.Value}'");
         }
 
         [Flags]
