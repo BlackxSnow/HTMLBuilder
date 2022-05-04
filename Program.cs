@@ -13,9 +13,9 @@ namespace HTMLBuilder
 
         static bool _IsRunning = true;
 
-        public static string IndexPath = null!;
-        public static string ProjectPath = null!;
-        public static string OutputPath = null!;
+        public static string IndexPath { get; set; } = null!;
+        public static string ProjectPath { get; set; } = null!;
+        public static string OutputPath { get; set; } = null!;
 
         class Subcommand
         {
@@ -63,7 +63,7 @@ namespace HTMLBuilder
             { "build", new Command(BuildIndex, "", "Generates index.html from provided data.") },
             { "config", new Command(Config.Configure, "[?string:option] [?string:value]", "Gets or sets config options. Provide value to set, empty to list.") },
             { "exit", new Command((_) => _IsRunning = false, "", "Quits the application.") },
-            { "ref", new Command(Map.Command_Ref, "[set/remove/list]", "Mapping Reference manipulation and viewing.",
+            { "ref", new Command(Referencing.Command_Ref, "[set/remove/list]", "Mapping Reference manipulation and viewing.",
                 new Subcommand("set [key] [file/folder] [path]", "Creates or modifies a reference by key."),
                 new Subcommand("remove", "Removes a mapping reference."),
                 new Subcommand("list [?string:search] [options: (-p --path), (-m --mappings)]", "Lists all mapping references optionally by search term.")
@@ -100,7 +100,13 @@ namespace HTMLBuilder
 
             if (_Commands.TryGetValue(values[0].ToLower(), out var command))
             {
-                command.Function(args);
+                try
+                {
+                    command.Function(args);
+                }
+                catch (ArgumentException)
+                {
+                }
             }
             else
             {

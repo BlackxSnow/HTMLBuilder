@@ -12,8 +12,9 @@ namespace HTMLBuilder
         {
             if (index > args.Length - 1)
             {
-                Console.WriteLine($"Expected argument {index} but only {args.Length} were provided.");
-                throw new ArgumentException();
+                string msg = $"Expected argument {index} but only {args.Length} were provided.";
+                Console.WriteLine(msg);
+                throw new ArgumentException(msg);
             }
             return args[index];
         }
