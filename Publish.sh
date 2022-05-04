@@ -1,1 +1,1 @@
-dotnet publish PortfolioProjectHTMLInserter.sln -p:PublishSingleFile=true -r win-x64 -c Release --self-contained false
+dotnet publish HTMLBuilder.sln -p:PublishSingleFile=true -r win-x64 -c Release --self-contained false

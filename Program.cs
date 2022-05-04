@@ -3,9 +3,9 @@ using System.Xml;
 using System.Xml.Linq;
 using HtmlAgilityPack;
 
-namespace PortfolioProjectHTMLInserter
+namespace HTMLBuilder
 {
-    static class Program
+    public static class Program
     {
         const string VERSION = "1.0.0";
 
@@ -19,15 +19,27 @@ namespace PortfolioProjectHTMLInserter
 
         class Command
         {
-            public Action<string[]> Function;
-            public string Args;
-            public string Description;
+            public readonly Action<Argument[]> Function;
+            public readonly string Args;
+            public readonly string Description;
 
-            public Command(Action<string[]> func, string args, string description)
+            public Command(Action<Argument[]> func, string args, string description)
             {
                 Function = func;
                 Args = args;
                 Description = description;
+            }
+        }
+
+        public class Argument
+        {
+            public string Value;
+            public bool IsOption;
+
+            public Argument(string value, bool isOption)
+            {
+                Value = value;
+                IsOption = isOption;
             }
         }
 
@@ -42,7 +54,40 @@ namespace PortfolioProjectHTMLInserter
         static void HandleInvalid()
         {
             Console.WriteLine("Invalid input.");
-            _Commands["help"].Function(Array.Empty<string>());
+            _Commands["help"].Function(Array.Empty<Argument>());
+        }
+
+        static Argument[] ParseArgs(IEnumerable<string> argStrings)
+        {
+            List<Argument> arguments = new(argStrings.Count());
+            foreach (var arg in argStrings)
+            {
+                if (arg.StartsWith("--") || arg.StartsWith("-"))
+                {
+                    arguments.Add(new Argument(arg.Trim('-'), true));
+                }
+                else
+                {
+                    arguments.Add(new Argument(arg, false));
+                }
+            }
+            return arguments.ToArray();
+        }
+
+        static void HandleCommand(string input)
+        {
+            string[] values = input.Split(' ', StringSplitOptions.TrimEntries);
+            Argument[] args = ParseArgs(values.Skip(1));
+
+            if (_Commands.TryGetValue(values[0].ToLower(), out var command))
+            {
+                command.Function(args);
+            }
+            else
+            {
+                HandleInvalid();
+                return;
+            }
         }
 
         static void Main(string[] _)
@@ -61,22 +106,11 @@ namespace PortfolioProjectHTMLInserter
                     HandleInvalid();
                     continue;
                 }
-
-                string[] values = input.Split(" ", StringSplitOptions.TrimEntries);
-
-                if (_Commands.TryGetValue(values[0].ToLower(), out var command))
-                {
-                    command.Function(values.Skip(1).ToArray());
-                }
-                else
-                {
-                    HandleInvalid();
-                    continue;
-                }
+                HandleCommand(input);
             }
         }
 
-        static void Help(string[] args)
+        static void Help(Argument[] args)
         {
             StringBuilder output = new(10 + _Commands.Count * 50);
             output.AppendLine("Help:");
@@ -129,7 +163,7 @@ namespace PortfolioProjectHTMLInserter
             }
         }
 
-        static void BuildIndex(string[] args)
+        static void BuildIndex(Argument[] args)
         {
             if (!File.Exists(IndexPath))
             {

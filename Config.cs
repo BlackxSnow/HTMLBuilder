@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 
-namespace PortfolioProjectHTMLInserter
+namespace HTMLBuilder
 {
     public static class Config
     {
@@ -18,7 +18,7 @@ namespace PortfolioProjectHTMLInserter
             ("OutputPath", "output.html"),
         };
 
-        public static void Configure(string[] args)
+        public static void Configure(Program.Argument[] args)
         {
             XElement root = XElement.Load(_ConfigStream);
             if (args.Length == 0)
@@ -33,7 +33,7 @@ namespace PortfolioProjectHTMLInserter
             }
             else
             {
-                bool isValid = Query.Perform(root, args[0], out var optionQuery, true);
+                bool isValid = Query.Perform(root, args[0].Value, out var optionQuery, true);
                 if (!isValid)
                 {
                     _ConfigStream.Seek(0, SeekOrigin.Begin);
@@ -42,7 +42,7 @@ namespace PortfolioProjectHTMLInserter
                 if (optionQuery.Count() > 1)
                 {
                     StringBuilder output = new(128);
-                    output.AppendLine($"Key '{args[0]}' was ambiguous between:");
+                    output.AppendLine($"Key '{args[0].Value}' was ambiguous between:");
                     foreach (XElement element in optionQuery)
                     {
                         output.AppendLine($"\t{element.Name} = {element.Value}");
@@ -60,7 +60,7 @@ namespace PortfolioProjectHTMLInserter
                     return;
                 }
                 string oldValue = option.Value;
-                option.SetValue(args[1]);
+                option.SetValue(args[1].Value);
                 SaveConfig(root);
                 Console.WriteLine($"Successfully set {option.Name} ({oldValue} -> {option.Value})");
             }
