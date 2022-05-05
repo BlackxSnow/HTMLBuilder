@@ -86,9 +86,45 @@ namespace HTMLBuilder
             return arguments.ToArray();
         }
 
+        private static string[] ParseArgString(string input)
+        {
+            string[] quoteSplit = input.Split('"');
+            List<string> finalArgs = new();
+
+            for (int i = 0; i < quoteSplit.Length; i++)
+            {
+                string current = quoteSplit[i];
+                if (i % 2 != 0)
+                {
+                    finalArgs.Add(current);
+                    continue;
+                }
+
+                if (current == "") continue;
+
+                string[] spaceSplit = current.Split(' ', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+                int start = 0;
+                int end = spaceSplit.Length;
+                bool appendToLast = i > 0 && current[0] != ' ';
+                bool prependToNext = i < quoteSplit.Length - 1 && current[current.Length - 1] != ' ';
+
+                if (appendToLast)
+                {
+                    finalArgs[finalArgs.Count - 1] += spaceSplit[start++];
+                }
+                if (prependToNext)
+                {
+                    quoteSplit[i + 1] = spaceSplit[--end] + quoteSplit[i + 1];
+                }
+
+                finalArgs.AddRange(spaceSplit.Skip(start).Take(end - start));
+            }
+            return finalArgs.ToArray();
+        }
+
         static void HandleCommand(string input)
         {
-            string[] values = input.Split(' ', StringSplitOptions.TrimEntries);
+            string[] values = ParseArgString(input);
             Arguments.Argument[] args = ParseArgs(values.Skip(1));
 
             if (_Commands.TryGetValue(values[0].ToLower(), out var command))
