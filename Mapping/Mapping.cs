@@ -67,7 +67,7 @@ namespace HTMLBuilder
         // map [Set/Remove/List] [key] [ConsumerKey] [ContributorKey] --contributor [searchParams] --consumer [searchParams]
         // map list [?search] [options (-v --verbose)]
 
-        private static List<SearchParam> ParseSearch(Program.Argument[] args, int startIndex, out int endIndex, out string? elementNameSearch)
+        private static List<SearchParam> ParseSearch(Arguments.Argument[] args, int startIndex, out int endIndex, out string? elementNameSearch)
         {
             List<SearchParam> result = new();
             elementNameSearch = null;
@@ -100,11 +100,11 @@ namespace HTMLBuilder
             }
         }
 
-        private static void Map_Set(Program.Argument[] args)
+        private static void Map_Set(Arguments.Argument[] args)
         {
-            Program.Argument key = Arguments.Read(args, 1);
-            Program.Argument consumerKey = Arguments.Read(args, 2);
-            Program.Argument contributorKey = Arguments.Read(args, 3);
+            Arguments.Argument key = Arguments.Read(args, 1);
+            Arguments.Argument consumerKey = Arguments.Read(args, 2);
+            Arguments.Argument contributorKey = Arguments.Read(args, 3);
             bool isConsumerValid = References.TryGetValue(consumerKey.Value, out Reference? consumer);
             bool isContributorValid = References.TryGetValue(contributorKey.Value, out Reference? contributor);
 
@@ -120,7 +120,7 @@ namespace HTMLBuilder
                 Console.WriteLine(msg);
                 throw new ArgumentException(msg);
             }
-            Program.Argument firstSearch = Arguments.Read(args, 4);
+            Arguments.Argument firstSearch = Arguments.Read(args, 4);
             if (!firstSearch.IsOption)
             {
                 throw new ArgumentException($"Unexpected token '{firstSearch.Value}'. Expected search option.");
@@ -129,7 +129,7 @@ namespace HTMLBuilder
             if (firstSearch.Value.ToLower() == "contributor")
             {
                 List<SearchParam> contributorSearch = ParseSearch(args, 5, out int endIndex, out string? contributorNameSearch);
-                Program.Argument secondSearch = Arguments.Read(args, endIndex++);
+                Arguments.Argument secondSearch = Arguments.Read(args, endIndex++);
                 if (secondSearch.Value.ToLower() != "consumer")
                 {
                     throw new ArgumentException($"Unexpected token '{secondSearch.Value}'. Expected search option.");
@@ -140,7 +140,7 @@ namespace HTMLBuilder
             else if (firstSearch.Value.ToLower() == "consumer")
             {
                 List<SearchParam> consumerSearch = ParseSearch(args, 5, out int endIndex, out string? consumerNameSearch);
-                Program.Argument secondSearch = Arguments.Read(args, endIndex++);
+                Arguments.Argument secondSearch = Arguments.Read(args, endIndex++);
                 if (secondSearch.Value.ToLower() != "contributor")
                 {
                     throw new ArgumentException($"Unexpected token '{secondSearch.Value}'. Expected search option.");
@@ -182,7 +182,7 @@ namespace HTMLBuilder
         }
 
         
-        private static void Map_Remove(Program.Argument[] args)
+        private static void Map_Remove(Arguments.Argument[] args)
         {
             string key = Arguments.Read(in args, 1).Value;
             if (!Mappings.ContainsKey(key))
@@ -210,7 +210,7 @@ namespace HTMLBuilder
         {
             Verbose = 1
         }
-        private static void Map_List(Program.Argument[] args)
+        private static void Map_List(Arguments.Argument[] args)
         {
             int optionsStartIndex = 1;
             string? searchKey = null;
@@ -254,7 +254,7 @@ namespace HTMLBuilder
             Console.WriteLine(output);
         }
 
-        public static void Command_Map(Program.Argument[] args)
+        public static void Command_Map(Arguments.Argument[] args)
         {
             if (args.Length == 0)
             {

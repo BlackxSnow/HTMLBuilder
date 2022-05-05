@@ -8,7 +8,19 @@ namespace HTMLBuilder
 {
     public static class Arguments
     {
-        public static Program.Argument Read(in Program.Argument[] args, int index)
+        public class Argument
+        {
+            public string Value;
+            public bool IsOption;
+
+            public Argument(string value, bool isOption)
+            {
+                Value = value;
+                IsOption = isOption;
+            }
+        }
+        
+        public static Argument Read(in Argument[] args, int index)
         {
             if (index > args.Length - 1)
             {

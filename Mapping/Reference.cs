@@ -103,11 +103,11 @@ namespace HTMLBuilder
     
     public static class Referencing
     {
-        private static void Ref_Set(Program.Argument[] args)
+        private static void Ref_Set(Arguments.Argument[] args)
         {
-            Program.Argument key = Arguments.Read(in args, 1);
-            Program.Argument pathTypeArg = Arguments.Read(in args, 2);
-            Program.Argument path = Arguments.Read(in args, 3);
+            Arguments.Argument key = Arguments.Read(in args, 1);
+            Arguments.Argument pathTypeArg = Arguments.Read(in args, 2);
+            Arguments.Argument path = Arguments.Read(in args, 3);
 
             PathResult pathType;
             try
@@ -220,9 +220,9 @@ namespace HTMLBuilder
             return true;
         }
 
-        private static void Ref_Remove(Program.Argument[] args)
+        private static void Ref_Remove(Arguments.Argument[] args)
         {
-            Program.Argument key = Arguments.Read(in args, 1);
+            Arguments.Argument key = Arguments.Read(in args, 1);
             bool isKeyValid = Mapper.References.TryGetValue(key.Value, out Reference? reference);
             if (!isKeyValid)
             {
@@ -251,7 +251,7 @@ namespace HTMLBuilder
             ShowPath = 1 << 0,
             ShowMappings = 1 << 1
         }
-        private static RefListOptions RefListGetOptions(Program.Argument[] args, int startIndex)
+        private static RefListOptions RefListGetOptions(Arguments.Argument[] args, int startIndex)
         {
             RefListOptions options = 0;
             for (int i = startIndex; i < args.Length; i++)
@@ -280,7 +280,7 @@ namespace HTMLBuilder
             }
             return options;
         }
-        private static void Ref_List(Program.Argument[] args)
+        private static void Ref_List(Arguments.Argument[] args)
         {
             int optionStartIndex = 1;
             string? keySearch = null;
@@ -322,7 +322,7 @@ namespace HTMLBuilder
 
         }
 
-        public static void Command_Ref(Program.Argument[] args)
+        public static void Command_Ref(Arguments.Argument[] args)
         {
             if (args.Length == 0)
             {

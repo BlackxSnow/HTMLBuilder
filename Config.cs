@@ -18,7 +18,7 @@ namespace HTMLBuilder
             ("OutputPath", "output.html"),
         };
 
-        public static void Configure(Program.Argument[] args)
+        public static void Configure(Arguments.Argument[] args)
         {
             XElement root = XElement.Load(_ConfigStream);
             if (args.Length == 0)

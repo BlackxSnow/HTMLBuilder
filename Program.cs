@@ -31,29 +31,17 @@ namespace HTMLBuilder
 
         class Command
         {
-            public readonly Action<Argument[]> Function;
+            public readonly Action<Arguments.Argument[]> Function;
             public readonly string Args;
             public readonly string Description;
             public readonly Subcommand[] Subcommands;
 
-            public Command(Action<Argument[]> func, string args, string description, params Subcommand[] subcommands)
+            public Command(Action<Arguments.Argument[]> func, string args, string description, params Subcommand[] subcommands)
             {
                 Function = func;
                 Args = args;
                 Description = description;
                 Subcommands = subcommands;
-            }
-        }
-
-        public class Argument
-        {
-            public string Value;
-            public bool IsOption;
-
-            public Argument(string value, bool isOption)
-            {
-                Value = value;
-                IsOption = isOption;
             }
         }
 
@@ -78,21 +66,21 @@ namespace HTMLBuilder
         static void HandleInvalid()
         {
             Console.WriteLine("Invalid input.");
-            _Commands["help"].Function(Array.Empty<Argument>());
+            _Commands["help"].Function(Array.Empty<Arguments.Argument>());
         }
 
-        static Argument[] ParseArgs(IEnumerable<string> argStrings)
+        static Arguments.Argument[] ParseArgs(IEnumerable<string> argStrings)
         {
-            List<Argument> arguments = new(argStrings.Count());
+            List<Arguments.Argument> arguments = new(argStrings.Count());
             foreach (var arg in argStrings)
             {
                 if (arg.StartsWith("--") || arg.StartsWith("-"))
                 {
-                    arguments.Add(new Argument(arg.Trim('-'), true));
+                    arguments.Add(new Arguments.Argument(arg.Trim('-'), true));
                 }
                 else
                 {
-                    arguments.Add(new Argument(arg, false));
+                    arguments.Add(new Arguments.Argument(arg, false));
                 }
             }
             return arguments.ToArray();
@@ -101,7 +89,7 @@ namespace HTMLBuilder
         static void HandleCommand(string input)
         {
             string[] values = input.Split(' ', StringSplitOptions.TrimEntries);
-            Argument[] args = ParseArgs(values.Skip(1));
+            Arguments.Argument[] args = ParseArgs(values.Skip(1));
 
             if (_Commands.TryGetValue(values[0].ToLower(), out var command))
             {
@@ -139,7 +127,7 @@ namespace HTMLBuilder
             }
         }
 
-        static void Help(Argument[] args)
+        static void Help(Arguments.Argument[] args)
         {
             StringBuilder output = new(10 + _Commands.Count * 50);
             output.AppendLine("Help:");
@@ -192,7 +180,7 @@ namespace HTMLBuilder
             }
         }
 
-        static void BuildIndex(Argument[] args)
+        static void BuildIndex(Arguments.Argument[] args)
         {
             if (!File.Exists(IndexPath))
             {
