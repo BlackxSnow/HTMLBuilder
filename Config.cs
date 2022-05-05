@@ -13,9 +13,7 @@ namespace HTMLBuilder
 
         public static (string option, string value)[] DefaultConfig { get; private set; } = new (string option, string value)[]
         {
-            ("IndexPath","Resources/index.html"),
-            ("ProjectPath", "Resources/Projects"),
-            ("OutputPath", "output.html"),
+            ("OutputPath", "output")
         };
 
         public static void Configure(Arguments.Argument[] args)
@@ -150,9 +148,7 @@ namespace HTMLBuilder
         static void Load()
         {
             string[] configValues = Config.Read(null, Config.DefaultConfig.Select(c => c.option).ToArray());
-            Program.IndexPath = configValues[0];
-            Program.ProjectPath = configValues[1];
-            Program.OutputPath = configValues[2];
+            Program.OutputPath = configValues[0];
         }
 
         public static void Initialize()

@@ -48,7 +48,7 @@ namespace HTMLBuilder
         static readonly Dictionary<string, Command> _Commands = new()
         {
             { "help", new Command(Help, "[?string:command]", "Lists commands or provides detailed info on given command") },
-            { "build", new Command(BuildIndex, "", "Generates index.html from provided data.") },
+            { "build", new Command(Builder.BuildFiles, "", "Builds outputs from provided mappings.") },
             { "config", new Command(Config.Configure, "[?string:option] [?string:value]", "Gets or sets config options. Provide value to set, empty to list.") },
             { "exit", new Command((_) => _IsRunning = false, "", "Quits the application.") },
             { "ref", new Command(Referencing.Command_Ref, "[set/remove/list]", "Mapping Reference manipulation and viewing.",
@@ -97,8 +97,15 @@ namespace HTMLBuilder
                 {
                     command.Function(args);
                 }
-                catch (ArgumentException)
+                catch (ArgumentException ex)
                 {
+                    Console.WriteLine(ex.Message);
+                    return;
+                }
+                catch (BuilderException ex)
+                {
+                    Console.WriteLine(ex.Message);
+                    return;
                 }
             }
             else
@@ -137,84 +144,6 @@ namespace HTMLBuilder
                 output.AppendLine($"\t{command.Key}: {command.Value.Description}");
             }
             Console.WriteLine(output.ToString());
-        }
-
-
-
-        static void InsertProject(HtmlNode indexHeaderContainer, HtmlNode indexProjectContainer, HtmlNode projectHeader, HtmlNode projectBody)
-        {
-            indexHeaderContainer.AppendChildren(projectHeader.ChildNodes);
-
-            HtmlNode lastChild = indexHeaderContainer;
-            foreach(HtmlNode node in projectBody.ChildNodes)
-            {
-                indexProjectContainer.InsertAfter(node, lastChild);
-                lastChild = node;
-            }
-        }
-
-        static void InsertProjects(HtmlNode projectHeaderContainer, HtmlNode projectsContainer)
-        {
-            string[] projectFiles = Directory.GetFiles(ProjectPath);
-
-            for (int i = projectFiles.Length - 1; i >= 0; i--)
-            {
-                string file = projectFiles[i];
-                if (!file.EndsWith(".html"))
-                {
-                    Console.WriteLine($"Skipping '{file}' due to extension.");
-                    continue;
-                }
-                HtmlDocument projectRoot = new();
-                projectRoot.Load(file);
-
-                bool isHeaderValid = Query.Perform(projectRoot, "headerData", out var headerQuery);
-                bool isBodyValid = Query.Perform(projectRoot, "bodyData", out var bodyQuery);
-                if (!isHeaderValid || !isBodyValid)
-                {
-                    Console.WriteLine($"Skipping '{file}' due to missing header or body elements.");
-                    continue;
-                }
-                InsertProject(projectHeaderContainer, projectsContainer, headerQuery.First(), bodyQuery.First());
-                Console.WriteLine($"Successfully inserted '{file}");
-            }
-        }
-
-        static void BuildIndex(Arguments.Argument[] args)
-        {
-            if (!File.Exists(IndexPath))
-            {
-                Console.WriteLine($"ERROR: Could not find template index.html at {Path.GetFullPath(IndexPath)}");
-                return;
-            }
-            HtmlDocument root = new();
-            try
-            {
-                root.Load(IndexPath);
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine($"ERROR: {e.Message}");
-                return;
-            }
-
-            bool isBodyValid = Query.Perform(root, "div", "main", out IEnumerable<HtmlNode> bodyQuery);
-            bool isHeaderValid = Query.Perform(root, "article", "projects", out IEnumerable<HtmlNode> headerQuery);
-            if (!isBodyValid || !isHeaderValid)
-            {
-                Console.WriteLine("Operation failed.");
-                return;
-            }
-
-            HtmlNode body = bodyQuery.First();
-            HtmlNode header = headerQuery.First();
-
-            InsertProjects(header, body);
-
-            FileStream outputFile = File.Create(OutputPath);
-            root.Save(outputFile);
-            outputFile.Close();
-            Console.WriteLine($"Successfully saved file to '{Path.GetFullPath(OutputPath)}'");
         }
     } 
 }

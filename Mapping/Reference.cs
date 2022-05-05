@@ -86,6 +86,7 @@ namespace HTMLBuilder
             }
 
             mapping.Contributor.Consumers.Add(mapping);
+            Mapper.Heads.Remove(mapping.Contributor);
             mapping.Consumer.Contributors.Add(mapping);
             mapping.Consumer.AddDependency(mapping.Contributor);
             Mapper.Mappings.Add(mapping.Key, mapping);
@@ -135,7 +136,7 @@ namespace HTMLBuilder
                 using (FileStream mapFile = File.Open(Mapper.MAPPINGS_FILE, FileMode.Open))
                 {
                     XElement root = XElement.Load(mapFile);
-                    XElement refElement = root.Elements("ref").First(e => e.Attribute("key")?.Value == key.Value);
+                    XElement refElement = root.Descendants("ref").First(e => e.Attribute("key")?.Value == key.Value);
                     refElement.SetAttributeValue("path", path.Value);
                     refElement.SetAttributeValue("pathType", pathType.ToString());
                     Mapper.SaveMap(mapFile, root);
@@ -144,6 +145,14 @@ namespace HTMLBuilder
             }
             else
             {
+                if (pathType == PathResult.File)
+                {
+                    if (!File.Exists(path.Value)) Console.WriteLine($"Warning: File at '{Path.GetFullPath(path.Value)}' does not currently exist.");
+                }
+                else if (pathType == PathResult.Folder)
+                {
+                    if (!Directory.Exists(path.Value)) Console.WriteLine($"Warning: Folder at '{Path.GetFullPath(path.Value)}' does not currently exist.");
+                }
                 Reference toAdd = new(key.Value, path.Value, pathType);
                 Mapper.References.Add(key.Value, toAdd);
                 Mapper.Heads.Add(toAdd);
@@ -310,11 +319,11 @@ namespace HTMLBuilder
                 {
                     foreach (Mapping mapping in reference.Consumers)
                     {
-                        output.AppendLine($"\tthis <- {mapping.Contributor.Key}");
+                        output.AppendLine($"\tthis -> {mapping.Consumer.Key}");
                     }
                     foreach (Mapping mapping in reference.Contributors)
                     {
-                        output.AppendLine($"\tthis -> {mapping.Contributor.Key}");
+                        output.AppendLine($"\tthis <- {mapping.Contributor.Key}");
                     }
                 }
             }

@@ -284,7 +284,6 @@ namespace HTMLBuilder
             bool wasSuccessful = Reference.AddMapping(mapping);
             if (!wasSuccessful) return false;
 
-            Heads.Remove(mapping.Contributor);
             return true;
         }
 
@@ -310,7 +309,9 @@ namespace HTMLBuilder
                 NullCheck(pathTypeString, $"Reference '{key}' did not have a path type (file or folder).");
                 PathResult pathType = (PathResult)Enum.Parse(typeof(PathResult), pathTypeString!, true);
 
-                References.Add(key!, new Reference(key!, path!, pathType));
+                Reference reference = new Reference(key!, path!, pathType);
+                References.Add(key!, reference);
+                Heads.Add(reference);
                 lastKey = key!;
                 count++;
             }
