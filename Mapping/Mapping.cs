@@ -339,8 +339,10 @@ namespace HTMLBuilder
                 string? pathTypeString = refData.Attribute("pathType")?.Value;
                 NullCheck(pathTypeString, $"Reference '{key}' did not have a path type (file or folder).");
                 PathResult pathType = (PathResult)Enum.Parse(typeof(PathResult), pathTypeString!, true);
+                ReferenceOptions flags = Parse.Flags<ReferenceOptions>(refData.Attribute("flags")?.Value, out List<string> failed);
+                failed.ForEach((f) => Console.WriteLine($"WARNING: Mapping '{key}' has an invalid flag '{f}'."));
 
-                Reference reference = new Reference(key!, path!, pathType);
+                Reference reference = new Reference(key!, path!, pathType, flags);
                 References.Add(key!, reference);
                 Heads.Add(reference);
                 lastKey = key!;
@@ -362,27 +364,6 @@ namespace HTMLBuilder
                 results.Add(new SearchParam(attributeName!, attributeValue!));
             }
             return results;
-        }
-
-        private static MappingOptions ParseFlagsFromString(string? input, out List<string> failed)
-        {
-            MappingOptions result = 0;
-            failed = new();
-            if (input == null || input == string.Empty) return result;
-            string[] flags = input.Split("", StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-
-            foreach(string flag in flags)
-            {
-                try
-                {
-                    result |= Enum.Parse<MappingOptions>(flag, true);
-                }                    
-                catch (ArgumentException)
-                {
-                    failed.Add(flag);
-                }
-            }
-            return result;
         }
 
         private static void LoadMappings(XElement mappings)
@@ -420,7 +401,7 @@ namespace HTMLBuilder
                 NullCheck(contributorSearch, $"Mapping '{key}' did not have a contributor search.");
 
                 string? flagString = mappingData.Attribute("flags")?.Value;
-                MappingOptions flags = ParseFlagsFromString(flagString, out List<string> failed);
+                MappingOptions flags = Parse.Flags<MappingOptions>(flagString, out List<string> failed);
                 failed.ForEach((f) => Console.WriteLine($"WARNING: Mapping '{key}' has an invalid flag '{f}'."));
 
 

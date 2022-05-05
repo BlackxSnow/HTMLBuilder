@@ -43,6 +43,8 @@ namespace HTMLBuilder
             }
             List<HtmlDocument> loaded = new();
 
+            if (reference.Flags.HasFlag(ReferenceOptions.Reverse)) files = files.Reverse();
+
             Console.WriteLine($"Loading reference '{reference.Key}' (folder - {files.Count()} files)...");
 
             foreach (string file in files)

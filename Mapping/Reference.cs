@@ -12,17 +12,24 @@ namespace HTMLBuilder
         File,
         Folder
     }
+    [Flags]
+    public enum ReferenceOptions
+    {
+        Reverse
+    }
     public class Reference
     {
         public string Key { get; set; }
         public string Path { get; set; }
         public PathResult PathType { get; set; }
+        public ReferenceOptions Flags { get; set; }
 
-        public Reference(string key, string path, PathResult pathType)
+        public Reference(string key, string path, PathResult pathType, ReferenceOptions flags)
         {
             Key = key;
             Path = path;
             PathType = pathType;
+            Flags = flags;
         }
 
         public List<Mapping> Consumers = new();
@@ -109,6 +116,7 @@ namespace HTMLBuilder
             Arguments.Argument key = Arguments.Read(in args, 1);
             Arguments.Argument pathTypeArg = Arguments.Read(in args, 2);
             Arguments.Argument path = Arguments.Read(in args, 3);
+            ReferenceOptions flags = Parse.Flags<ReferenceOptions>(args, 4);
 
             PathResult pathType;
             try
@@ -133,12 +141,14 @@ namespace HTMLBuilder
 
                 toSet.PathType = pathType;
                 toSet.Path = path.Value;
+                toSet.Flags = flags;
                 using (FileStream mapFile = File.Open(Mapper.MAPPINGS_FILE, FileMode.Open))
                 {
                     XElement root = XElement.Load(mapFile);
                     XElement refElement = root.Descendants("ref").First(e => e.Attribute("key")?.Value == key.Value);
                     refElement.SetAttributeValue("path", path.Value);
                     refElement.SetAttributeValue("pathType", pathType.ToString());
+                    refElement.SetAttributeValue("flags", flags.ToString());
                     Mapper.SaveMap(mapFile, root);
                 }
                 Console.WriteLine($"Successfully set value of existing reference '{key.Value}'");
@@ -153,14 +163,14 @@ namespace HTMLBuilder
                 {
                     if (!Directory.Exists(path.Value)) Console.WriteLine($"Warning: Folder at '{Path.GetFullPath(path.Value)}' does not currently exist.");
                 }
-                Reference toAdd = new(key.Value, path.Value, pathType);
+                Reference toAdd = new(key.Value, path.Value, pathType, flags);
                 Mapper.References.Add(key.Value, toAdd);
                 Mapper.Heads.Add(toAdd);
                 using (FileStream mapFile = File.Open(Mapper.MAPPINGS_FILE, FileMode.Open))
                 {
                     XElement root = XElement.Load(mapFile);
                     XElement referenceContainer = root.Element("references")!;
-                    XElement refElement = new("ref", new XAttribute("key", key.Value), new XAttribute("path", path.Value), new XAttribute("pathType", pathType.ToString()));
+                    XElement refElement = new("ref", new XAttribute("key", key.Value), new XAttribute("path", path.Value), new XAttribute("pathType", pathType.ToString()), new XAttribute("flags", flags.ToString()));
                     referenceContainer.Add(refElement);
                     Mapper.SaveMap(mapFile, root);
                 }
