@@ -77,7 +77,15 @@ namespace HTMLBuilder
                 {
                     IEnumerable<HtmlNode> extractionNode = GetElementFromSearch(contributor, mapping.ContributorSearch, mapping.ContributorNameSearch);
                     if (extractionNode.Count() != 1) throw new BuilderException($"Error while building reference '{reference.Key}': Expected single extraction node for contributor '{mapping.Contributor.Key}', found {extractionNode.Count()}.");
-                    insertionNode.First().AppendChild(extractionNode.First());
+                    if (mapping.Flags.HasFlag(MappingOptions.Unpack))
+                    {
+                        insertionNode.First().AppendChildren(extractionNode.First().ChildNodes);
+                    }
+                    else
+                    {
+                        insertionNode.First().AppendChild(extractionNode.First());
+                    }
+                    
                 }
             }
             List<HtmlDocument> resultList = new List<HtmlDocument>();

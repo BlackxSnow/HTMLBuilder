@@ -25,6 +25,12 @@ namespace HTMLBuilder
         }
     }
 
+    [Flags]
+    public enum MappingOptions
+    {
+        Unpack = 1 << 0
+    }
+
     public class Mapping
     {
         public string Key { get; set; }
@@ -34,8 +40,9 @@ namespace HTMLBuilder
         public string? ConsumerNameSearch;
         public List<SearchParam> ContributorSearch;
         public string? ContributorNameSearch;
+        public MappingOptions Flags { get; set; }
 
-        public Mapping(string key, Reference consumer, Reference contributor, List<SearchParam> consumerSearch, string? consumerNameSearch, List<SearchParam> contributorSearch, string? contributorNameSearch)
+        public Mapping(string key, Reference consumer, Reference contributor, List<SearchParam> consumerSearch, string? consumerNameSearch, List<SearchParam> contributorSearch, string? contributorNameSearch, MappingOptions flags)
         {
             Key = key;
             Consumer = consumer;
@@ -44,6 +51,7 @@ namespace HTMLBuilder
             ConsumerNameSearch = consumerNameSearch;
             ContributorSearch = contributorSearch;
             ContributorNameSearch = contributorNameSearch;
+            Flags = flags;
         }
     }
 
@@ -100,6 +108,28 @@ namespace HTMLBuilder
             }
         }
 
+        private static MappingOptions GetMappingOptions(Arguments.Argument[] args, int startIndex)
+        {
+            MappingOptions flags = 0;
+            for (int i = startIndex; i < args.Length; i++)
+            {
+                if (!args[i].IsOption)
+                {
+                    throw new ArgumentException($"Unexpected token '{args[i].Value}'. Expected mapping option.");
+                }
+
+                try
+                {
+                    flags |= Enum.Parse<MappingOptions>(args[i].Value, true);
+                }
+                catch (ArgumentException)
+                {
+                    throw new ArgumentException($"Unknown option '{args[i].Value}'.");
+                }
+            }
+            return flags;
+        }
+
         private static void Map_Set(Arguments.Argument[] args)
         {
             Arguments.Argument key = Arguments.Read(args, 1);
@@ -135,7 +165,7 @@ namespace HTMLBuilder
                     throw new ArgumentException($"Unexpected token '{secondSearch.Value}'. Expected search option.");
                 }
                 List<SearchParam> consumerSearch = ParseSearch(args, endIndex, out endIndex, out string? consumerNameSearch);
-                mapping = new Mapping(key.Value, consumer!, contributor!, consumerSearch, consumerNameSearch, contributorSearch, contributorNameSearch);
+                mapping = new Mapping(key.Value, consumer!, contributor!, consumerSearch, consumerNameSearch, contributorSearch, contributorNameSearch, GetMappingOptions(args, endIndex));
             }
             else if (firstSearch.Value.ToLower() == "consumer")
             {
@@ -146,24 +176,25 @@ namespace HTMLBuilder
                     throw new ArgumentException($"Unexpected token '{secondSearch.Value}'. Expected search option.");
                 }
                 List<SearchParam> contributorSearch = ParseSearch(args, endIndex, out endIndex, out string? contributorNameSearch);
-                mapping = new Mapping(key.Value, consumer!, contributor!, consumerSearch, consumerNameSearch, contributorSearch, contributorNameSearch);
+                mapping = new Mapping(key.Value, consumer!, contributor!, consumerSearch, consumerNameSearch, contributorSearch, contributorNameSearch, GetMappingOptions(args, endIndex));
             }
             else
             {
                 throw new ArgumentException($"Unexpected token '{firstSearch.Value}'. Expected search option.");
             }
 
-            if (Mappings.TryGetValue(key.Value, out Mapping? existing))
-            {
-                Reference.RemoveMapping(existing);
-            }
-
-            Reference.AddMapping(mapping);
-
             using FileStream mapFile = File.Open(MAPPINGS_FILE, FileMode.Open);
             XElement root = XElement.Load(mapFile);
             XElement mappingElement = root.Element("mappings")!;
-            XElement map = new XElement("map", new XAttribute("key", key.Value), new XAttribute("consumer", consumerKey.Value), new XAttribute("contributor", contributorKey.Value));
+
+            if (Mappings.TryGetValue(key.Value, out Mapping? existing))
+            {
+                Reference.RemoveMapping(existing);
+                mappingElement.Elements().Where((e) => e.Attribute("key")?.Value == existing.Key).Remove();
+            }
+            Reference.AddMapping(mapping);
+
+            XElement map = new XElement("map", new XAttribute("key", key.Value), new XAttribute("consumer", consumerKey.Value), new XAttribute("contributor", contributorKey.Value), new XAttribute("flags", mapping.Flags.ToString()));
             mappingElement.Add(map);
             XElement consumerSearchElement = new XElement("consumerSearch");
             if (mapping.ConsumerNameSearch != null) consumerSearchElement.SetAttributeValue("name", mapping.ConsumerNameSearch);
@@ -333,6 +364,27 @@ namespace HTMLBuilder
             return results;
         }
 
+        private static MappingOptions ParseFlagsFromString(string? input, out List<string> failed)
+        {
+            MappingOptions result = 0;
+            failed = new();
+            if (input == null || input == string.Empty) return result;
+            string[] flags = input.Split("", StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+
+            foreach(string flag in flags)
+            {
+                try
+                {
+                    result |= Enum.Parse<MappingOptions>(flag, true);
+                }                    
+                catch (ArgumentException)
+                {
+                    failed.Add(flag);
+                }
+            }
+            return result;
+        }
+
         private static void LoadMappings(XElement mappings)
         {
             uint count = 0;
@@ -367,7 +419,12 @@ namespace HTMLBuilder
                 string? contributorNameSearch = contributorSearch!.Attribute("name")?.Value;
                 NullCheck(contributorSearch, $"Mapping '{key}' did not have a contributor search.");
 
-                Reference.AddMapping(new Mapping(key!, consumer!, contributor!, LoadSearchParams(consumerSearch!, key!), consumerNameSearch, LoadSearchParams(contributorSearch!, key!), contributorNameSearch));
+                string? flagString = mappingData.Attribute("flags")?.Value;
+                MappingOptions flags = ParseFlagsFromString(flagString, out List<string> failed);
+                failed.ForEach((f) => Console.WriteLine($"WARNING: Mapping '{key}' has an invalid flag '{f}'."));
+
+
+                Reference.AddMapping(new Mapping(key!, consumer!, contributor!, LoadSearchParams(consumerSearch!, key!), consumerNameSearch, LoadSearchParams(contributorSearch!, key!), contributorNameSearch, flags));
                 lastKey = key!;
                 count++;
             }
