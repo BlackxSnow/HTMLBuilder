@@ -7,7 +7,7 @@ namespace HTMLBuilder
 {
     public static class Program
     {
-        const string VERSION = "1.0.0";
+        const string VERSION = "1.1.0";
 
         public const string CONFIG_FILE = "HBConfig.xml";
 
@@ -67,6 +67,11 @@ namespace HTMLBuilder
                 new Subcommand("set [key] [file/folder] [path]", "Creates or modifies a reference by key."),
                 new Subcommand("remove", "Removes a mapping reference."),
                 new Subcommand("list [?string:search] [options: (-p --path), (-m --mappings)]", "Lists all mapping references optionally by search term.")
+            )},
+            { "map", new Command(Mapper.Command_Map, "[set/remove/list]", "Manipulation and viewing of mappings.",
+                new Subcommand("set [key] [file/folder] [path]", "Creates or modifies a mapping by key."),
+                new Subcommand("remove", "Removes a mapping."),
+                new Subcommand("list [?string:search] [options: (-v --verbose)]", "Lists all mappings grouped by consumer, and optionally filtered by search term.")
             )}
         };
 
@@ -120,7 +125,7 @@ namespace HTMLBuilder
             Console.WriteLine($"HTML Inserter - Version {VERSION}\nType 'help' to list commands.");
 
             Config.Initialize();
-            Map.Initialize();
+            Mapper.Initialize();
 
             while (_IsRunning)
             {

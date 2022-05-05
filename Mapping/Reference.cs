@@ -88,6 +88,7 @@ namespace HTMLBuilder
             mapping.Contributor.Consumers.Add(mapping);
             mapping.Consumer.Contributors.Add(mapping);
             mapping.Consumer.AddDependency(mapping.Contributor);
+            Mapper.Mappings.Add(mapping.Key, mapping);
             return true;
         }
 
@@ -96,6 +97,7 @@ namespace HTMLBuilder
             mapping.Contributor.Consumers.Remove(mapping);
             mapping.Consumer.Contributors.Remove(mapping);
             mapping.Consumer.RemoveDependency(mapping.Contributor);
+            Mapper.Mappings.Remove(mapping.Key);
         }
     }
     
@@ -117,9 +119,9 @@ namespace HTMLBuilder
                 Console.WriteLine($"PathType '{pathTypeArg.Value}' is not valid. (folder or file)");
                 throw;
             }
-            if (Map.References.ContainsKey(key.Value))
+            if (Mapper.References.ContainsKey(key.Value))
             {
-                Reference toSet = Map.References[key.Value];
+                Reference toSet = Mapper.References[key.Value];
 
                 if (pathType == PathResult.Folder && toSet.Contributors.Count > 0)
                 {
@@ -130,28 +132,28 @@ namespace HTMLBuilder
 
                 toSet.PathType = pathType;
                 toSet.Path = path.Value;
-                using (FileStream mapFile = File.Open(Map.MAPPINGS_FILE, FileMode.Open))
+                using (FileStream mapFile = File.Open(Mapper.MAPPINGS_FILE, FileMode.Open))
                 {
                     XElement root = XElement.Load(mapFile);
                     XElement refElement = root.Elements("ref").First(e => e.Attribute("key")?.Value == key.Value);
                     refElement.SetAttributeValue("path", path.Value);
                     refElement.SetAttributeValue("pathType", pathType.ToString());
-                    Map.SaveMap(mapFile, root);
+                    Mapper.SaveMap(mapFile, root);
                 }
                 Console.WriteLine($"Successfully set value of existing reference '{key.Value}'");
             }
             else
             {
                 Reference toAdd = new(key.Value, path.Value, pathType);
-                Map.References.Add(key.Value, toAdd);
-                Map.Heads.Add(toAdd);
-                using (FileStream mapFile = File.Open(Map.MAPPINGS_FILE, FileMode.Open))
+                Mapper.References.Add(key.Value, toAdd);
+                Mapper.Heads.Add(toAdd);
+                using (FileStream mapFile = File.Open(Mapper.MAPPINGS_FILE, FileMode.Open))
                 {
                     XElement root = XElement.Load(mapFile);
                     XElement referenceContainer = root.Element("references")!;
                     XElement refElement = new("ref", new XAttribute("key", key.Value), new XAttribute("path", path.Value), new XAttribute("pathType", pathType.ToString()));
                     referenceContainer.Add(refElement);
-                    Map.SaveMap(mapFile, root);
+                    Mapper.SaveMap(mapFile, root);
                 }
                 Console.WriteLine($"Successfully added reference '{key.Value}'.");
             }
@@ -204,15 +206,24 @@ namespace HTMLBuilder
                 Reference.RemoveMapping(mapping);
             }
 
-            Map.References.Remove(key);
-            Map.Heads.Remove(reference);
+            Mapper.References.Remove(key);
+            Mapper.Heads.Remove(reference);
+
+            using FileStream mapFile = File.Open(Mapper.MAPPINGS_FILE, FileMode.Open);
+            XElement root = XElement.Load(mapFile);
+            XElement referenceContainer = root.Element("references")!;
+            referenceContainer.Elements("ref").First(e => e.Attribute("key")?.Value == key).Remove();
+            XElement mappingContainer = root.Element("mappings")!;
+            mappingContainer.Elements("map").Where((e) => toRemove.Any((m) => m.Key == e.Attribute("key")?.Value)).Remove();
+            Mapper.SaveMap(mapFile, root);
+
             return true;
         }
 
         private static void Ref_Remove(Program.Argument[] args)
         {
             Program.Argument key = Arguments.Read(in args, 1);
-            bool isKeyValid = Map.References.TryGetValue(key.Value, out Reference? reference);
+            bool isKeyValid = Mapper.References.TryGetValue(key.Value, out Reference? reference);
             if (!isKeyValid)
             {
                 Console.WriteLine($"Reference key '{key.Value}' does not exist.");
@@ -222,14 +233,14 @@ namespace HTMLBuilder
 
             if (RefRemoveWithMappings(key.Value, reference!)) return;
 
-            Map.References.Remove(key.Value);
-            Map.Heads.Remove(reference!);
-            using (FileStream mapFile = File.Open(Map.MAPPINGS_FILE, FileMode.Open))
+            Mapper.References.Remove(key.Value);
+            Mapper.Heads.Remove(reference!);
+            using (FileStream mapFile = File.Open(Mapper.MAPPINGS_FILE, FileMode.Open))
             {
                 XElement root = XElement.Load(mapFile);
                 XElement refElement = root.Element("references")!.Elements("ref").First(e => e.Attribute("key")?.Value == key.Value);
                 refElement.Remove();
-                Map.SaveMap(mapFile, root);
+                Mapper.SaveMap(mapFile, root);
             }
             Console.WriteLine($"Successfully removed '{key.Value}'");
         }
@@ -280,7 +291,7 @@ namespace HTMLBuilder
             }
             RefListOptions options = RefListGetOptions(args, optionStartIndex);
 
-            IEnumerable<Reference> references = Map.References.Values;
+            IEnumerable<Reference> references = Mapper.References.Values;
             if (keySearch != null)
             {
                 references = references.Where(r => r.Key.Contains(keySearch));
