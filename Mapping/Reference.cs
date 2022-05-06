@@ -242,13 +242,7 @@ namespace HTMLBuilder
         private static void Ref_Remove(Arguments.Argument[] args)
         {
             Arguments.Argument key = Arguments.Read(in args, 1);
-            bool isKeyValid = Mapper.References.TryGetValue(key.Value, out Reference? reference);
-            if (!isKeyValid)
-            {
-                Console.WriteLine($"Reference key '{key.Value}' does not exist.");
-                return;
-            }
-
+            Reference reference = Parse.Key(Mapper.References, key.Value, $"Reference key '{key.Value}' does not exist.");
 
             if (RefRemoveWithMappings(key.Value, reference!)) return;
 

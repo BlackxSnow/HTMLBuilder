@@ -10,68 +10,87 @@ namespace HTMLBuilder
 {
     public static class Query
     {
-        static bool Validate<T>(IEnumerable<T> query, string name, bool allowMultiple)
+        private static IEnumerable<T> Validate<T>(IEnumerable<T> query, string? name, bool allowNone, bool allowMultiple, params (string attribute, string value)[] attributes)
         {
-            if (!query.Any())
+            if (!allowNone && !query.Any())
             {
-                Console.WriteLine($"ERROR: Failed to find element '{name}'");
-                return false;
+                StringBuilder error = new(128);
+                error.Append($"ERROR: Failed to find element ");
+                if (name != null) error.Append($"'{name}' ");
+                error.Append($"with attributes: {string.Join(", ", attributes.Select(a => $"{ a.attribute}= '{a.value}'"))}");
+                throw new ArgumentException(error.ToString());
             }
-            else if (!allowMultiple && query.Count() > 1)
+            if (!allowMultiple && query.Count() > 1)
             {
-                StringBuilder output = new(64 + 24 * query.Count());
-                output.AppendLine($"ERROR: Query '{name}' was ambiguous with {query.Count()} results:");
-                foreach(T element in query)
+                StringBuilder error = new(128);
+                error.Append($"ERROR: Query for element ");
+                if (name != null) error.Append($"'{name}' ");
+                error.AppendLine($"with attributes: {string.Join(", ", attributes.Select(a => $"{ a.attribute}= '{a.value}'"))} was ambiguous between {query.Count()} results:");
+                foreach (T conflict in query)
                 {
-                    switch (element)
+                    switch (conflict)
                     {
                         case XElement e:
-                            output.AppendLine($"\t{e.Name} = {e.Value}");
+                            error.AppendLine($"\t{e.Name}: {string.Join(", ", e.Attributes().Select(a => $"{a.Name}={a.Value}"))}");
                             break;
                         case HtmlNode n:
-                            output.AppendLine($"\t{n.Name}");
+                            error.AppendLine($"\t{n.Name}: {string.Join(", ", n.Attributes.Select(a => $"{a.Name}={a.Value}"))}");
                             break;
                     }
                 }
-                return false;
+                throw new ArgumentException(error.ToString());
             }
-            return true;
-        }
-        static bool Validate<T>(IEnumerable<T> query, string name, string id, bool allowMultiple)
-        {
-            if (!query.Any())
-            {
-                Console.WriteLine($"ERROR: Failed to find element '{name}' with id '{id}'");
-                return false;
-            }
-            else if (!allowMultiple && query.Count() > 1)
-            {
-                Console.WriteLine($"ERROR: Query '{name}' with id '{id}' was ambiguous with {query.Count()} results.");
-                return false;
-            }
-            return true;
+            return query;
         }
 
-        public static bool Perform(XElement root, string name, out IEnumerable<XElement> query, bool allowMultiple = false)
+        private static IEnumerable<XElement> BuildXML(XElement root, string? name, params (string attribute, string value)[] attributes)
         {
-            query = from element in root.Elements(name) select element;
-            return Validate(query, name, allowMultiple);
+            IEnumerable<XElement> query;
+            if (name != null) query = root.Descendants(name);
+            else query = root.Elements();
+
+            foreach ((string attribute, string value) in attributes)
+            {
+                query = query.Where(e => e.Attribute(attribute)?.Value == value);
+            }
+            return query;
+        }
+        private static IEnumerable<HtmlNode> BuildHTML(HtmlNode root, string? name, params (string attribute, string value)[] attributes)
+        {
+            IEnumerable<HtmlNode> query;
+            if (name != null) query = root.Descendants(name);
+            else query = root.ChildNodes;
+
+            foreach ((string attribute, string value) in attributes)
+            {
+                query = query.Where(e => e.GetAttributeValue(attribute, "") == value);
+            }
+            return query;
         }
 
-        public static bool Perform(XElement root, string name, string id, out IEnumerable<XElement> query, bool allowMultiple = false)
+        public static XElement ForSingle(XElement root, string? name, params (string attribute, string value)[] attributes)
         {
-            query = from element in root.Elements(name) where (string?)element.Attribute("id") == id select element;
-            return Validate(query, name, id, allowMultiple);
+            return Validate(BuildXML(root, name, attributes), name, false, false, attributes).First();
         }
-        public static bool Perform(HtmlDocument root, string name, out IEnumerable<HtmlNode> query, bool allowMultiple = false)
+        public static HtmlNode ForSingle(HtmlNode root, string? name, params (string attribute, string value)[] attributes)
         {
-            query = from node in root.DocumentNode.Descendants(name) select node;
-            return Validate(query, name, allowMultiple);
+            return Validate(BuildHTML(root, name, attributes), name, false, false, attributes).First();
         }
-        public static bool Perform(HtmlDocument root, string name, string id, out IEnumerable<HtmlNode> query, bool allowMultiple = false)
+        public static XElement? ForSingleOrNone(XElement root, string? name, params (string attribute, string value)[] attributes)
         {
-            query = from node in root.DocumentNode.Descendants(name) where node.Attributes["id"]?.Value == id select node;
-            return Validate(query, name, id, allowMultiple);
+            return Validate(BuildXML(root, name, attributes), name, true, false, attributes).FirstOrDefault();
+        }
+        public static HtmlNode? ForSingleOrNone(HtmlNode root, string? name, params (string attribute, string value)[] attributes)
+        {
+            return Validate(BuildHTML(root, name, attributes), name, true, false, attributes).FirstOrDefault();
+        }
+        public static IEnumerable<XElement> ForMultiple(XElement root, string? name, params (string attribute, string value)[] attributes)
+        {
+            return Validate(BuildXML(root, name, attributes), name, false, true, attributes);
+        }
+        public static IEnumerable<HtmlNode> ForMultiple(HtmlNode root, string? name, params (string attribute, string value)[] attributes)
+        {
+            return Validate(BuildHTML(root, name, attributes), name, false, true, attributes);
         }
     }
 }

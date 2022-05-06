@@ -7,7 +7,7 @@ namespace HTMLBuilder
 {
     public static class Program
     {
-        const string VERSION = "1.1.0";
+        const string VERSION = "1.1.3";
 
         public const string CONFIG_FILE = "HBConfig.xml";
 

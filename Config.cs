@@ -18,51 +18,40 @@ namespace HTMLBuilder
 
         public static void Configure(Arguments.Argument[] args)
         {
-            XElement root = XElement.Load(_ConfigStream);
-            if (args.Length == 0)
+            try
             {
-                StringBuilder output = new(128);
-                output.AppendLine("Config Options:");
-                foreach (XElement element in root.Elements())
-                {
-                    output.AppendLine($"\t{element.Name} = {element.Value}");
-                }
-                Console.WriteLine(output.ToString());
-            }
-            else
-            {
-                bool isValid = Query.Perform(root, args[0].Value, out var optionQuery, true);
-                if (!isValid)
-                {
-                    _ConfigStream.Seek(0, SeekOrigin.Begin);
-                    return;
-                }
-                if (optionQuery.Count() > 1)
+                XElement root = XElement.Load(_ConfigStream);
+                if (args.Length == 0)
                 {
                     StringBuilder output = new(128);
-                    output.AppendLine($"Key '{args[0].Value}' was ambiguous between:");
-                    foreach (XElement element in optionQuery)
+                    output.AppendLine("Config Options:");
+                    foreach (XElement element in root.Elements())
                     {
                         output.AppendLine($"\t{element.Name} = {element.Value}");
                     }
-                    Console.WriteLine(output);
-                    _ConfigStream.Seek(0, SeekOrigin.Begin);
-                    return;
+                    Console.WriteLine(output.ToString());
                 }
-
-                XElement option = optionQuery.First();
-                if (args.Length == 1)
+                else
                 {
-                    Console.WriteLine($"{option.Name} = {option.Value}");
-                    _ConfigStream.Seek(0, SeekOrigin.Begin);
-                    return;
+                    XElement optionElement = Query.ForSingle(root, args[0].Value);
+                    if (args.Length == 1)
+                    {
+                        Console.WriteLine($"{optionElement.Name} = {optionElement.Value}");
+                        _ConfigStream.Seek(0, SeekOrigin.Begin);
+                        return;
+                    }
+                    string oldValue = optionElement.Value;
+                    optionElement.SetValue(args[1].Value);
+                    SaveConfig(root);
+                    Console.WriteLine($"Successfully set {optionElement.Name} ({oldValue} -> {optionElement.Value})");
                 }
-                string oldValue = option.Value;
-                option.SetValue(args[1].Value);
-                SaveConfig(root);
-                Console.WriteLine($"Successfully set {option.Name} ({oldValue} -> {option.Value})");
+                _ConfigStream.Seek(0, SeekOrigin.Begin);
             }
-            _ConfigStream.Seek(0, SeekOrigin.Begin);
+            catch (Exception)
+            {
+                _ConfigStream.Seek(0, SeekOrigin.Begin);
+                throw;
+            }
         }
 
         static void SaveConfig(XElement root)
@@ -83,17 +72,7 @@ namespace HTMLBuilder
 
             foreach ((string option, string value) in toWrite)
             {
-                IEnumerable<XElement> query = from element in root.Elements(option) select element;
-                if (query.Count() > 1)
-                {
-                    throw new ArgumentException($"Too many results for '{option}'");
-                }
-                else if (!query.Any())
-                {
-                    root.SetElementValue(option, value);
-                }
-
-                query.First().SetValue(value);
+                root.SetElementValue(option, value);
             }
             SaveConfig(root);
         }
@@ -112,16 +91,8 @@ namespace HTMLBuilder
             }
             foreach (string option in options)
             {
-                IEnumerable<XElement> query = from element in root.Elements(option) select element;
-                if (query.Count() > 1)
-                {
-                    throw new ArgumentException($"Too many results for '{option}'");
-                }
-                else if (!query.Any())
-                {
-                    throw new ArgumentException($"No results for '{option}'");
-                }
-                values.Add(query.First().Value);
+                XElement optionsElement = Query.ForSingle(root, option);
+                values.Add(optionsElement.Value);
             }
             _ConfigStream.Seek(0, SeekOrigin.Begin);
             return values.ToArray();

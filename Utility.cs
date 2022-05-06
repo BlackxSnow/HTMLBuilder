@@ -46,5 +46,44 @@ namespace HTMLBuilder
             }
             return (T)(object)result;
         }
+
+        public static V Key<T, V>(Dictionary<T, V> map, T? key, string errorMessage) where T : notnull
+        {
+            if (key == null) throw new ArgumentException(errorMessage);
+            if (map.TryGetValue(key, out V? value))
+            {
+                return value;
+            }
+            throw new ArgumentException(errorMessage);
+        }
+    }
+
+    public static class Validate
+    {
+        public static T Value<T>(T? value, string errorMessage)
+        {
+            if (value == null) throw new ArgumentException(errorMessage);
+            return value;
+        }
+        public static T Key<T, V>(Dictionary<T,V> map, T? key, string errorMessage) where T : notnull
+        {
+            if (key == null) throw new ArgumentException(errorMessage);
+            if (!map.ContainsKey(key)) throw new ArgumentException(errorMessage);
+            return key;
+        }
+        public static T Key<T>(HashSet<T> map, T? key, string errorMessage)
+        {
+            if (key == null) throw new ArgumentException(errorMessage);
+            if (!map.Contains(key)) throw new ArgumentException(errorMessage);
+            return key;
+        }
+        public static T Key<T, V>(Dictionary<T,V> map, T? key, Func<T?, string> errorGetter) where T : notnull
+        {
+            return Key(map, key, errorGetter(key));
+        }
+        public static T Key<T>(HashSet<T> map, T? key, Func<T?, string> errorGetter) where T : notnull
+        {
+            return Key(map, key, errorGetter(key));
+        }
     }
 }

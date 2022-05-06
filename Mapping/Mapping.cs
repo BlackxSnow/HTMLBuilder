@@ -71,9 +71,6 @@ namespace HTMLBuilder
             stream.Seek(0, SeekOrigin.Begin);
         }
 
-        // ref [Set/Remove/List] [key] [file/folder] [path]
-        // map [Set/Remove/List] [key] [ConsumerKey] [ContributorKey] --contributor [searchParams] --consumer [searchParams]
-        // map list [?search] [options (-v --verbose)]
 
         private static List<SearchParam> ParseSearch(Arguments.Argument[] args, int startIndex, out int endIndex, out string? elementNameSearch)
         {
@@ -135,21 +132,10 @@ namespace HTMLBuilder
             Arguments.Argument key = Arguments.Read(args, 1);
             Arguments.Argument consumerKey = Arguments.Read(args, 2);
             Arguments.Argument contributorKey = Arguments.Read(args, 3);
-            bool isConsumerValid = References.TryGetValue(consumerKey.Value, out Reference? consumer);
-            bool isContributorValid = References.TryGetValue(contributorKey.Value, out Reference? contributor);
 
-            if (!isConsumerValid)
-            {
-                string msg = $"Consumer reference '{consumerKey.Value}' does not exist.";
-                Console.WriteLine(msg);
-                throw new ArgumentException(msg);
-            }
-            if (!isContributorValid)
-            {
-                string msg = $"Contributor reference '{contributorKey.Value}' does not exist.";
-                Console.WriteLine(msg);
-                throw new ArgumentException(msg);
-            }
+            Reference consumer = Parse.Key(References, consumerKey.Value, $"Consumer reference '{consumerKey.Value}' does not exist.");
+            Reference contributor = Parse.Key(References, contributorKey.Value, $"Contributor reference '{contributorKey.Value}' does not exist.");
+
             Arguments.Argument firstSearch = Arguments.Read(args, 4);
             if (!firstSearch.IsOption)
             {
@@ -215,13 +201,7 @@ namespace HTMLBuilder
         
         private static void Map_Remove(Arguments.Argument[] args)
         {
-            string key = Arguments.Read(in args, 1).Value;
-            if (!Mappings.ContainsKey(key))
-            {
-                string msg = $"No mapping '{key}' exists.";
-                Console.WriteLine(msg);
-                throw new ArgumentException(msg);
-            }
+            string key = Validate.Key(Mappings, Arguments.Read(in args, 1).Value, (key) => $"No mapping '{key}' exists.");
             Mapping mapping = Mappings[key];
             string consumerKey = mapping.Consumer.Key;
             string contributorKey = mapping.Contributor.Key;
@@ -310,34 +290,15 @@ namespace HTMLBuilder
             }
         }
 
-        public static bool AddMapping(Mapping mapping)
-        {
-            bool wasSuccessful = Reference.AddMapping(mapping);
-            if (!wasSuccessful) return false;
-
-            return true;
-        }
-
-        private static void NullCheck(object? value, string message)
-        {
-            if (value == null)
-            {
-                throw new InvalidDataException(message);
-            }
-        }
-
         private static void LoadReferences(XElement references)
         {
             uint count = 0;
             string lastKey = "<references> tag";
             foreach (XElement refData in references.Elements("ref"))
             {
-                string? key = refData.Attribute("key")?.Value;
-                NullCheck(key, $"Reference entry after '{lastKey}' did not have a key.");
-                string? path = refData.Attribute("path")?.Value;
-                NullCheck(path, $"Reference '{key}' did not have a path.");
-                string? pathTypeString = refData.Attribute("pathType")?.Value;
-                NullCheck(pathTypeString, $"Reference '{key}' did not have a path type (file or folder).");
+                string key = Validate.Value(refData.Attribute("key")?.Value, $"Reference entry after '{lastKey}' did not have a key.");
+                string path = Validate.Value(refData.Attribute("path")?.Value, $"Reference '{key}' did not have a path.");
+                string pathTypeString = Validate.Value(refData.Attribute("pathType")?.Value, $"Reference '{key}' did not have a path type (file or folder).");
                 PathResult pathType = (PathResult)Enum.Parse(typeof(PathResult), pathTypeString!, true);
                 ReferenceOptions flags = Parse.Flags<ReferenceOptions>(refData.Attribute("flags")?.Value, out List<string> failed);
                 failed.ForEach((f) => Console.WriteLine($"WARNING: Mapping '{key}' has an invalid flag '{f}'."));
@@ -356,10 +317,8 @@ namespace HTMLBuilder
             List<SearchParam> results = new();
             foreach (XElement searchParam in container.Elements("attributeSearchParam"))
             {
-                string? attributeName = searchParam.Attribute("name")?.Value;
-                NullCheck(attributeName, $"SearchParam of '{parentKey}' did not have an attribute name.");
-                string? attributeValue = searchParam.Attribute("value")?.Value;
-                NullCheck(attributeValue, $"SearchParam of '{parentKey}' did not have an attribute value.");
+                string attributeName = Validate.Value(searchParam.Attribute("name")?.Value, $"SearchParam of '{parentKey}' did not have an attribute name.");
+                string attributeValue = Validate.Value(searchParam.Attribute("value")?.Value, $"SearchParam of '{parentKey}' did not have an attribute value.");
 
                 results.Add(new SearchParam(attributeName!, attributeValue!));
             }
@@ -372,12 +331,9 @@ namespace HTMLBuilder
             string lastKey = "<mappings> tag";
             foreach (XElement mappingData in mappings.Elements("map"))
             {
-                string? key = mappingData.Attribute("key")?.Value;
-                NullCheck(key, $"Mapping entry after '{lastKey}' did not have a key.");
-                string? consumerKey = mappingData.Attribute("consumer")?.Value;
-                NullCheck(consumerKey, $"Mapping '{key}' did not have a consumer.");
-                string? contributorKey = mappingData.Attribute("contributor")?.Value;
-                NullCheck(contributorKey, $"Mapping '{key}' did not have a contributor.");
+                string key = Validate.Value(mappingData.Attribute("key")?.Value, $"Mapping entry after '{lastKey}' did not have a key.");
+                string consumerKey = Validate.Value(mappingData.Attribute("consumer")?.Value, $"Mapping '{key}' did not have a consumer.");
+                string contributorKey = Validate.Value(mappingData.Attribute("contributor")?.Value, $"Mapping '{key}' did not have a contributor.");
 
                 bool isConsumerValid = References.TryGetValue(consumerKey!, out Reference? consumer);
                 bool isContributorValid = References.TryGetValue(contributorKey!, out Reference? contributor);
@@ -393,19 +349,17 @@ namespace HTMLBuilder
                     throw new InvalidDataException();
                 }
 
-                XElement? consumerSearch = mappingData.Element("consumerSearch");
-                NullCheck(consumerSearch, $"Mapping '{key}' did not have a consumer search.");
+                XElement consumerSearch = Validate.Value(mappingData.Element("consumerSearch"), $"Mapping '{key}' did not have a consumer search.");
                 string? consumerNameSearch = consumerSearch!.Attribute("name")?.Value;
-                XElement? contributorSearch = mappingData.Element("contributorSearch");
+                XElement contributorSearch = Validate.Value(mappingData.Element("contributorSearch"), $"Mapping '{key}' did not have a contributor search.");
                 string? contributorNameSearch = contributorSearch!.Attribute("name")?.Value;
-                NullCheck(contributorSearch, $"Mapping '{key}' did not have a contributor search.");
 
                 string? flagString = mappingData.Attribute("flags")?.Value;
                 MappingOptions flags = Parse.Flags<MappingOptions>(flagString, out List<string> failed);
                 failed.ForEach((f) => Console.WriteLine($"WARNING: Mapping '{key}' has an invalid flag '{f}'."));
 
 
-                Reference.AddMapping(new Mapping(key!, consumer!, contributor!, LoadSearchParams(consumerSearch!, key!), consumerNameSearch, LoadSearchParams(contributorSearch!, key!), contributorNameSearch, flags));
+                Reference.AddMapping(new Mapping(key!, consumer!, contributor!, LoadSearchParams(consumerSearch, key!), consumerNameSearch, LoadSearchParams(contributorSearch, key!), contributorNameSearch, flags));
                 lastKey = key!;
                 count++;
             }
@@ -429,10 +383,8 @@ namespace HTMLBuilder
             {
                 root = XElement.Load(mapFile);
             }
-            XElement? references = root.Element("references");
-            NullCheck(references, $"Mapping file did not have a references element.");
-            XElement? mappings = root.Element("mappings");
-            NullCheck(mappings, $"Mapping file did not have a mappings element.");
+            XElement? references = Validate.Value(root.Element("references"), $"Mapping file did not have a references element.");
+            XElement? mappings = Validate.Value(root.Element("mappings"), $"Mapping file did not have a mappings element.");
 
             Console.WriteLine($"Loading references...");
             LoadReferences(references!);
