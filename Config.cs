@@ -13,7 +13,14 @@ namespace HTMLBuilder
 
         public static (string option, string value)[] DefaultConfig { get; private set; } = new (string option, string value)[]
         {
-            ("OutputPath", "output")
+            ("OutputPath", "output"),
+            ("ftp.DistPath", ""),
+            ("ftp.DistIgnore", ""),
+            ("ftp.RemoteTargetPath", ""),
+            ("ftp.RemoteIgnore", ""),
+            ("ftp.Address", ""),
+            ("ftp.UserName", ""),
+            ("ftp.Password", "")
         };
 
         public static void Configure(Arguments.Argument[] args)

@@ -6,6 +6,14 @@ using System.Threading.Tasks;
 
 namespace HTMLBuilder
 {
+    public static class Extensions
+    {
+        public static string RemoveFirst(this string str, string other)
+        {
+            int index = str.IndexOf(other);
+            return (index < 0) ? str : str.Remove(index, other.Length);
+        }
+    }
     public static class Parse
     {
         public static T Flags<T>(string? input, out List<string> failed) where T : Enum

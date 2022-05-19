@@ -7,7 +7,7 @@ namespace HTMLBuilder
 {
     public static class Program
     {
-        const string VERSION = "1.1.3";
+        const string VERSION = "1.2.0";
 
         public const string CONFIG_FILE = "HBConfig.xml";
 
@@ -60,7 +60,8 @@ namespace HTMLBuilder
                 new Subcommand("set [key] [file/folder] [path]", "Creates or modifies a mapping by key."),
                 new Subcommand("remove", "Removes a mapping."),
                 new Subcommand("list [?string:search] [options: (-v --verbose)]", "Lists all mappings grouped by consumer, and optionally filtered by search term.")
-            )}
+            )},
+            { "deploy", new Command(SFTPDeployer.Deploy, "", "Recursive deployment of directory to FTP server.") }
         };
 
         static void HandleInvalid()
@@ -126,6 +127,8 @@ namespace HTMLBuilder
         {
             string[] values = ParseArgString(input);
             Arguments.Argument[] args = ParseArgs(values.Skip(1));
+
+            if (values.Length == 0) return;
 
             if (_Commands.TryGetValue(values[0].ToLower(), out var command))
             {
