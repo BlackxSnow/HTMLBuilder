@@ -78,6 +78,7 @@ namespace HTMLBuilder
                 foreach (HtmlDocument contributor in contributors)
                 {
                     IEnumerable<HtmlNode> extractionNode = GetElementFromSearch(contributor, mapping.ContributorSearch, mapping.ContributorNameSearch);
+                    // TODO: Get file name here somehow. Error is too general.
                     if (extractionNode.Count() != 1) throw new BuilderException($"Error while building reference '{reference.Key}': Expected single extraction node for contributor '{mapping.Contributor.Key}', found {extractionNode.Count()}.");
                     if (mapping.Flags.HasFlag(MappingOptions.Unpack))
                     {

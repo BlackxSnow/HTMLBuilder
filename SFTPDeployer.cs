@@ -158,7 +158,8 @@ namespace HTMLBuilder
         {
             while (fileQueue.TryDequeue(out string? file))
             {
-                string dirName = Path.GetDirectoryName(Path.Combine(targetDirectory, file.RemoveFirst(sourcePath + "\\")))!.Replace('\\', '/');
+                string remoteTarget = Path.Combine(targetDirectory, file.RemoveFirst(sourcePath + "/")).Replace('\\', '/');
+                string dirName = Path.GetDirectoryName(remoteTarget)!.Replace('\\', '/');
                 if (!client.Exists(dirName))
                 {
                     Console.WriteLine($"Creating '{dirName}'");
@@ -167,8 +168,7 @@ namespace HTMLBuilder
 
                 using (var stream = System.IO.File.OpenRead(file))
                 {
-                    string localSource = Path.GetFullPath(file);
-                    string remoteTarget = Path.Combine(targetDirectory, file.RemoveFirst(sourcePath + "\\")).Replace('\\', '/');
+                    string localSource = Path.GetFullPath(file);;
                     Console.WriteLine($"Starting upload:\n\t{localSource}\n\t{remoteTarget}");
                     client.UploadFile(stream, remoteTarget);
                 }
