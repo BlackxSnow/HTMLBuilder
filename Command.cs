@@ -11,6 +11,14 @@ public class Command
         public string Long;
         public string Args;
         public string Description;
+
+        public Option()
+        {
+            Short = "";
+            Long = "";
+            Args = "";
+            Description = "";
+        }
     }
     public class Subcommand
     {
@@ -21,7 +29,10 @@ public class Command
 
         public Subcommand()
         {
+            Name = "";
+            Args = "";
             Options = Array.Empty<Option>();
+            Description = "";
         }
     }
 
@@ -34,7 +45,10 @@ public class Command
 
     public Command()
     {
+        Name = "";
+        Args = "";
         Options = Array.Empty<Option>();
+        Description = "";
         Subcommands = Array.Empty<Subcommand>();
     }
 }
