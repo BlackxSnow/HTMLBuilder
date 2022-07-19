@@ -190,7 +190,7 @@ namespace HTMLBuilder
             await Task.WhenAll(uploads);
         }
 
-        private static void FilterFiles(ref LinkedList<string> localFiles, ref Dictionary<string, SftpFile> remoteFiles, string localSourcePath)
+        private static void FilterFiles(ref LinkedList<string> localFiles, ref Dictionary<string, SftpFile> remoteFiles, string localSourcePath, List<Regex> force)
         {
             List<string> toRemove = new();
             foreach (string localFile in localFiles)
@@ -200,7 +200,7 @@ namespace HTMLBuilder
                 {
                     FileInfo localFileInfo = new(localFile);
                     bool isSizeDifferent = fileInfo.Attributes.Size != localFileInfo.Length;
-                    bool isNewer = fileInfo.Attributes.LastWriteTime < localFileInfo.LastWriteTime;
+                    bool isNewer = fileInfo.Attributes.LastWriteTimeUtc < localFileInfo.LastWriteTimeUtc;
 
                     if (isSizeDifferent && isNewer)
                     {
@@ -208,8 +208,15 @@ namespace HTMLBuilder
                     }
                     else
                     {
-                        Console.WriteLine($"Skip:      {localFile}");
-                        toRemove.Add(localFile);
+                        if (force.Any(r => r.IsMatch(sourceLocalFile)))
+                        {
+                            Console.WriteLine($"Forced: {localFile}");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Skip: {localFile}");
+                            toRemove.Add(localFile);
+                        }
                     }
                     remoteFiles.Remove(sourceLocalFile);
                 }
@@ -222,6 +229,67 @@ namespace HTMLBuilder
             Console.WriteLine($"Skipped {toRemove.Count} files.");
         }
 
+        private struct DeployOptions
+        {
+            public bool IsDryRun;
+            public List<Regex> ForceSelectors;
+
+            public DeployOptions()
+            {
+                IsDryRun = false;
+                ForceSelectors = new();
+            }
+        }
+
+        /// <summary>
+        /// Returns whether or not to skip an index (if value is used)
+        /// </summary>
+        delegate bool OptionHandler(ref DeployOptions options, Arguments.Argument? value);
+
+        private static readonly List<(string[], OptionHandler)> OptionHandlers = new()
+        {
+            ( new [] {"d", "dry"}, ParseDryOption ),
+            ( new[] {"f", "force"}, ParseForceOption ),
+        };
+
+        private static bool ParseDryOption(ref DeployOptions options, Arguments.Argument? value)
+        {
+            options.IsDryRun = true;
+            return false;
+        }
+        private static bool ParseForceOption(ref DeployOptions options, Arguments.Argument? value)
+        {
+            Validate.Value(value, "No values provided for option --force.");
+
+            var selectors = value.Value.Split(",");
+            foreach (var sel in selectors)
+            {
+                options.ForceSelectors.Add(new Regex(sel));
+            }
+
+            return true;
+        }
+        
+        private static DeployOptions ParseOptions(Arguments.Argument[] args)
+        {
+            DeployOptions options = new();
+            for (var i = 0; i < args.Length; i++)
+            {
+                var current = args[i];
+                var foundOption = false;
+                foreach (var handler in OptionHandlers)
+                {
+                    if (handler.Item1.All(v => v != current.Value)) continue;
+                    foundOption = true;
+                    if (handler.Item2(ref options, args.ElementAtOrDefault(i + 1))) i++;
+                    break;
+                }
+                if (!foundOption) Console.WriteLine($"Unknown argument {current.Value}");
+            }
+
+            return options;
+        }
+        
         public static void Deploy(Arguments.Argument[] args)
         {
             string distPath = Config.Read(null, "ftp.DistPath")[0];
@@ -236,7 +304,7 @@ namespace HTMLBuilder
             string password = Config.Read(null, "ftp.Password")[0];
             if (string.IsNullOrEmpty(password)) throw new ArgumentException("ftp.Password is empty");
 
-            bool isDryRun = args.Length > 0 && args[0].IsOption && (args[0].Value == "dry" || args[0].Value == "d");
+            var options = ParseOptions(args);
 
             string[] remoteIgnore = Config.Read(null, "ftp.RemoteIgnore")[0].Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
             string[] localIgnore = Config.Read(null, "ftp.DistIgnore")[0].Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
@@ -262,8 +330,8 @@ namespace HTMLBuilder
                 Dictionary<string, SftpFile> remoteFiles = new(remoteExplore.Files);
                 List<SftpFile> remoteDirectories = remoteExplore.Folders;
 
-                FilterFiles(ref localFiles, ref remoteFiles, distPath);
-                if (!isDryRun)
+                FilterFiles(ref localFiles, ref remoteFiles, distPath, options.ForceSelectors);
+                if (!options.IsDryRun)
                 {
                     UploadFilesAsync(client, localFiles, distPath, remotePath, 4).Wait();
                     Console.WriteLine($"All uploads completed."); 
@@ -272,8 +340,8 @@ namespace HTMLBuilder
                 
                 foreach ((string path, SftpFile file) in remoteFiles)
                 {
-                    Console.WriteLine($"\t{(isDryRun ? "(dry) " : "")}Deleting {file.FullName}");
-                    if (!isDryRun)
+                    Console.WriteLine($"\t{(options.IsDryRun ? "(dry) " : "")}Deleting {file.FullName}");
+                    if (!options.IsDryRun)
                     {
                         file.Delete(); 
                     }
@@ -288,8 +356,8 @@ namespace HTMLBuilder
                     {
                         continue;
                     }
-                    Console.WriteLine($"\t{(isDryRun ? "(dry) " : "")}Deleting {dir.FullName}");
-                    if (!isDryRun)
+                    Console.WriteLine($"\t{(options.IsDryRun ? "(dry) " : "")}Deleting {dir.FullName}");
+                    if (!options.IsDryRun)
                     {
                         dir.Delete();
                     }
